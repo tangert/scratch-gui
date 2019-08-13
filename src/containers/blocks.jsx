@@ -153,6 +153,8 @@ const SCRATCH_BLOCK_IDX = {'': 0,
  'looks_changesizeby': 101
 };
 
+const modelURL = 'https://ty-has-a-bucket.s3.amazonaws.com/trained-models/tfjs/model.json'
+
 class Blocks extends React.Component {
     constructor (props) {
         super(props);
@@ -250,9 +252,7 @@ class Blocks extends React.Component {
         }
 
         // Only after the VM Completely mounts do you call tensorflow
-        const modelURL = 'https://ty-has-a-bucket.s3.amazonaws.com/trained-models/tfjs/model.json'
         const loadModel = tf.loadLayersModel(modelURL);
-
 
         // Hacky wait to make sure VM is compltely loaded
         window.setTimeout(function(){
@@ -268,8 +268,8 @@ class Blocks extends React.Component {
       let vm = window.vm
       let blks = vm.editingTarget.blocks._blocks;
       let scripts = vm.editingTarget.blocks._scripts;
-      console.log(blks)
-      var filtered = Object.fromEntries(Object.entries(blocks).filter(([k,v]) => v>1));
+      // console.log(blks)
+      // var filtered = Object.fromEntries(Object.entries(blocks).filter(([k,v]) => v>1));
     }
 
     // Returns all of the AST paths for a sprite
