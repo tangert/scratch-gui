@@ -19,6 +19,10 @@ import DropAreaHOC from '../lib/drop-area-hoc.jsx';
 import DragConstants from '../lib/drag-constants';
 import defineDynamicBlock from '../lib/define-dynamic-block';
 
+
+//TYLER MACHINE LEARNING STUFF
+import * as tf from '@tensorflow/tfjs';
+
 import {connect} from 'react-redux';
 import {updateToolbox} from '../reducers/toolbox';
 import {activateColorPicker} from '../reducers/color-picker';
@@ -43,6 +47,111 @@ const addFunctionListener = (object, property, callback) => {
 const DroppableBlocks = DropAreaHOC([
     DragConstants.BACKPACK_CODE
 ])(BlocksComponent);
+
+// Scratch block index dictionary for ML model.
+const SCRATCH_BLOCK_IDX = {'': 0,
+ 'control_forever': 1,
+ 'looks_switchcostumeto': 2,
+ 'control_wait_until': 3,
+ '-': 4,
+ 'motion_gotoxy': 5,
+ 'motion_setrotationstyle': 6,
+ 'data_deleteoflist': 7,
+ 'motion_changexby': 8,
+ 'sound_play': 9,
+ 'data_lengthoflist': 10,
+ 'motion_turnleft': 11,
+ 'sound_changevolumeby': 12,
+ 'looks_nextbackdrop': 13,
+ 'motion_ifonedgebounce': 14,
+ 'looks_nextcostume': 15,
+ 'data_hidelist': 16,
+ 'data_itemnumoflist': 17,
+ 'control_repeat_until': 18,
+ 'sensing_coloristouchingcolor': 19,
+ 'motion_sety': 20,
+ 'sensing_answer': 21,
+ 'data_addtolist': 22,
+ 'sound_seteffectto': 23,
+ 'event_broadcast': 24,
+ 'sensing_username': 25,
+ 'looks_say': 26,
+ 'control_create_clone_of': 27,
+ 'motion_setx': 28,
+ 'looks_think': 29,
+ 'event_whenbroadcastreceived': 30,
+ 'looks_show': 31,
+ 'control_delete_this_clone': 32,
+ 'data_replaceitemoflist': 33,
+ 'event_whenthisspriteclicked': 34,
+ 'data_setvariableto': 35,
+ 'sensing_touchingcolor': 36,
+ 'event_broadcastandwait': 37,
+ 'looks_costumenumbername': 38,
+ 'motion_changeyby': 39,
+ 'motion_pointindirection': 40,
+ 'data_itemoflist': 41,
+ 'data_deletealloflist': 42,
+ 'motion_movesteps': 43,
+ 'data_hidevariable': 44,
+ 'looks_switchbackdroptoandwait': 45,
+ 'data_changevariableby': 46,
+ 'sensing_dayssince2000': 47,
+ 'control_start_as_clone': 48,
+ 'event_whenflagclicked': 49,
+ 'sensing_touchingobject': 50,
+ 'control_if_else': 51,
+ 'data_listcontainsitem': 52,
+ 'looks_sayforsecs': 53,
+ 'data_showlist': 54,
+ 'looks_backdropnumbername': 55,
+ 'control_wait': 56,
+ 'motion_glidesecstoxy': 57,
+ 'looks_seteffectto': 58,
+ 'sensing_mousex': 59,
+ 'sensing_of': 60,
+ 'sensing_timer': 61,
+ 'sound_cleareffects': 62,
+ 'sensing_loudness': 63,
+ 'sensing_distanceto': 64,
+ 'motion_yposition': 65,
+ 'looks_setsizeto': 66,
+ 'sound_playuntildone': 67,
+ 'looks_thinkforsecs': 68,
+ 'data_insertatlist': 69,
+ 'sensing_current': 70,
+ 'motion_pointtowards': 71,
+ 'control_repeat': 72,
+ 'event_whenbackdropswitchesto': 73,
+ '>': 74,
+ 'looks_hide': 75,
+ 'event_whengreaterthan': 76,
+ 'sensing_setdragmode': 77,
+ 'looks_gotofrontback': 78,
+ 'looks_changeeffectby': 79,
+ 'control_if': 80,
+ 'motion_goto': 81,
+ 'sound_setvolumeto': 82,
+ 'sound_changeeffectby': 83,
+ 'event_whenkeypressed': 84,
+ 'motion_direction': 85,
+ 'sensing_keypressed': 86,
+ 'looks_size': 87,
+ 'motion_turnright': 88,
+ 'looks_goforwardbackwardlayers': 89,
+ 'motion_glideto': 90,
+ 'control_stop': 91,
+ 'motion_xposition': 92,
+ 'sensing_askandwait': 93,
+ 'sound_stopallsounds': 94,
+ 'looks_cleargraphiceffects': 95,
+ 'sensing_mousey': 96,
+ 'looks_switchbackdropto': 97,
+ 'data_showvariable': 98,
+ 'sensing_resettimer': 99,
+ 'sensing_mousedown': 100,
+ 'looks_changesizeby': 101
+};
 
 class Blocks extends React.Component {
     constructor (props) {
@@ -85,7 +194,11 @@ class Blocks extends React.Component {
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
     }
-    componentDidMount () {
+
+    // Add async to load ML model.
+    // async
+    componentDidMount() {
+      // try {
         this.ScratchBlocks.FieldColourSlider.activateEyedropper_ = this.props.onActivateColorPicker;
         this.ScratchBlocks.Procedures.externalProcedureDefCallback = this.props.onActivateCustomProcedures;
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
@@ -135,7 +248,57 @@ class Blocks extends React.Component {
         if (this.props.isVisible) {
             this.setLocale();
         }
+
+        // Only after the VM Completely mounts do you call tensorflow
+        const modelURL = 'https://ty-has-a-bucket.s3.amazonaws.com/trained-models/tfjs/model.json'
+        const loadModel = tf.loadLayersModel(modelURL);
+
+
+        // Hacky wait to make sure VM is compltely loaded
+        window.setTimeout(function(){
+          window.vm = this.props.vm
+          loadModel.then(model => { this.model = model });
+        }.bind(this),1000);
     }
+
+
+    // Blocks cleaning functions
+    // Returns the IDs of blocks in a block dictionary that are the end of AST paths.
+    getTerminalBlocks(blocks){
+      let vm = window.vm
+      let blks = vm.editingTarget.blocks._blocks;
+      let scripts = vm.editingTarget.blocks._scripts;
+      console.log(blks)
+      var filtered = Object.fromEntries(Object.entries(blocks).filter(([k,v]) => v>1));
+    }
+
+    // Returns all of the AST paths for a sprite
+    getAllPaths(blocks) {
+
+    }
+
+    // Returns all of the AST paths for a script
+    getScriptPaths(script) {
+
+    }
+
+    // Returns the AST path from this particular block up to parent.
+    getBlockPath(block) {
+
+    }
+
+    // ML Processing functions
+    idx2onehot(idx){
+      // idx2onehot = { i:one_hot_encode(i, len(vocab)) for i in idx2block }
+    }
+
+    reshape() {
+      // xv_reshaped = np.reshape(x_valid, (len(x_valid), input_len, 1))
+      // # normalize
+      // xv_reshaped = xv_reshaped / float(len(vocab))
+
+    }
+
     shouldComponentUpdate (nextProps, nextState) {
         return (
             this.state.prompt !== nextState.prompt ||
@@ -291,12 +454,17 @@ class Blocks extends React.Component {
     }
 
     onTargetsUpdate () {
-        if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
-            ['glide', 'move', 'set'].forEach(prefix => {
-                this.updateToolboxBlockValue(`${prefix}x`, Math.round(this.props.vm.editingTarget.x).toString());
-                this.updateToolboxBlockValue(`${prefix}y`, Math.round(this.props.vm.editingTarget.y).toString());
-            });
-        }
+      if(this.model) {
+        console.log("Model: ")
+        console.log(this.model)
+      }
+
+      if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
+          ['glide', 'move', 'set'].forEach(prefix => {
+              this.updateToolboxBlockValue(`${prefix}x`, Math.round(this.props.vm.editingTarget.x).toString());
+              this.updateToolboxBlockValue(`${prefix}y`, Math.round(this.props.vm.editingTarget.y).toString());
+          });
+      }
     }
     onWorkspaceMetricsChange () {
         const target = this.props.vm.editingTarget;
@@ -349,6 +517,8 @@ class Blocks extends React.Component {
         }
     }
     onWorkspaceUpdate (data) {
+
+      console.log("workspace update")
         // When we change sprites, update the toolbox to have the new sprite's blocks
         const toolboxXML = this.getToolboxXML();
         if (toolboxXML) {
@@ -394,6 +564,7 @@ class Blocks extends React.Component {
         // workspace to be 'undone' here.
         this.workspace.clearUndo();
     }
+
     handleExtensionAdded (categoryInfo) {
         const defineBlocks = blockInfoArray => {
             if (blockInfoArray && blockInfoArray.length > 0) {

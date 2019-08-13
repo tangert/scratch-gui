@@ -52,6 +52,13 @@ const base = {
                     '@babel/plugin-syntax-dynamic-import',
                     '@babel/plugin-transform-async-to-generator',
                     '@babel/plugin-proposal-object-rest-spread',
+                    // ["@babel/plugin-transform-runtime", {
+                    //     "absoluteRuntime": false,
+                    //     "corejs": false,
+                    //     "helpers": true,
+                    //     "regenerator": true,
+                    //     "useESModules": false
+                    // }],
                     ['react-intl', {
                         messagesDir: './translations/messages/'
                     }]],
