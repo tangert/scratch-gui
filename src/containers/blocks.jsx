@@ -183,7 +183,8 @@ class Blocks extends React.Component {
             'onWorkspaceUpdate',
             'onWorkspaceMetricsChange',
             'setBlocks',
-            'setLocale'
+            'setLocale',
+            'blockSuggest'
         ]);
         this.ScratchBlocks.prompt = this.handlePromptStart;
         this.ScratchBlocks.statusButtonCallback = this.handleConnectionModalStart;
@@ -210,6 +211,8 @@ class Blocks extends React.Component {
             this.props.options,
             {rtl: this.props.isRtl, toolbox: this.props.toolboxXML}
         );
+
+        // CREATING THE WORKSPACE.
         this.workspace = this.ScratchBlocks.inject(this.blocks, workspaceConfig);
 
         // Register buttons under new callback keys for creating variables,
@@ -259,6 +262,7 @@ class Blocks extends React.Component {
           window.vm = this.props.vm
           loadModel.then(model => { this.model = model });
         }.bind(this),1000);
+
     }
 
 
@@ -415,6 +419,12 @@ class Blocks extends React.Component {
             .getWorkspace();
         this.flyoutWorkspace.addChangeListener(this.props.vm.flyoutBlockListener);
         this.flyoutWorkspace.addChangeListener(this.props.vm.monitorBlockListener);
+
+        // Testing new listeners
+        // this.props.vm.addListener('PROJECT_CHANGED', this.projectChanged);
+        this.props.vm.addListener('BLOCK_SUGGEST', this.blockSuggest);
+
+
         this.props.vm.addListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
         this.props.vm.addListener('SCRIPT_GLOW_OFF', this.onScriptGlowOff);
         this.props.vm.addListener('BLOCK_GLOW_ON', this.onBlockGlowOn);
@@ -441,6 +451,12 @@ class Blocks extends React.Component {
         this.props.vm.removeListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
     }
 
+    // TEST
+    blockSuggest() {
+      console.log('Suggesting blocks from GUI.')
+      // console.log("project changed listener.")
+    }
+
     updateToolboxBlockValue (id, value) {
         this.withToolboxUpdates(() => {
             const block = this.workspace
@@ -455,8 +471,7 @@ class Blocks extends React.Component {
 
     onTargetsUpdate () {
       if(this.model) {
-        console.log("Model: ")
-        console.log(this.model)
+        "Target updating."
       }
 
       if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
@@ -518,7 +533,6 @@ class Blocks extends React.Component {
     }
     onWorkspaceUpdate (data) {
 
-      console.log("workspace update")
         // When we change sprites, update the toolbox to have the new sprite's blocks
         const toolboxXML = this.getToolboxXML();
         if (toolboxXML) {
