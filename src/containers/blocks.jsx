@@ -19,7 +19,6 @@ import DropAreaHOC from '../lib/drop-area-hoc.jsx';
 import DragConstants from '../lib/drag-constants';
 import defineDynamicBlock from '../lib/define-dynamic-block';
 
-
 //TYLER MACHINE LEARNING STUFF
 import * as tf from '@tensorflow/tfjs';
 
@@ -49,7 +48,7 @@ const DroppableBlocks = DropAreaHOC([
 ])(BlocksComponent);
 
 // Scratch block index dictionary for ML model.
-const SCRATCH_BLOCK_IDX = {'': 0,
+const BLOCK_2_IDX = {'': 0,
  'control_forever': 1,
  'looks_switchcostumeto': 2,
  'control_wait_until': 3,
@@ -153,6 +152,9 @@ const SCRATCH_BLOCK_IDX = {'': 0,
  'looks_changesizeby': 101
 };
 
+// Populate this in the constructor
+let IDX_2_BLOCK = {}
+
 const modelURL = 'https://ty-has-a-bucket.s3.amazonaws.com/trained-models/tfjs/model.json'
 
 class Blocks extends React.Component {
@@ -184,7 +186,11 @@ class Blocks extends React.Component {
             'onWorkspaceMetricsChange',
             'setBlocks',
             'setLocale',
-            'blockSuggest'
+            'blockSuggest',
+            'onProjectLoaded',
+            'encodeSequence',
+            'decodeSequence',
+            'topIndices'
         ]);
         this.ScratchBlocks.prompt = this.handlePromptStart;
         this.ScratchBlocks.statusButtonCallback = this.handleConnectionModalStart;
@@ -196,6 +202,13 @@ class Blocks extends React.Component {
         };
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
+
+        // Populate the index => block dictionary
+        for (var key in BLOCK_2_IDX) {
+            if (BLOCK_2_IDX.hasOwnProperty(key)) {
+                IDX_2_BLOCK[BLOCK_2_IDX[key]] = key;
+            }
+        }
     }
 
     // Add async to load ML model.
@@ -260,46 +273,9 @@ class Blocks extends React.Component {
         // Hacky wait to make sure VM is compltely loaded
         window.setTimeout(function(){
           window.vm = this.props.vm
-          loadModel.then(model => { this.model = model });
+          this.vm = this.props.vm
+          loadModel.then(model => { this.model = model; window.model = model });
         }.bind(this),1000);
-
-    }
-
-
-    // Blocks cleaning functions
-    // Returns the IDs of blocks in a block dictionary that are the end of AST paths.
-    getTerminalBlocks(blocks){
-      let vm = window.vm
-      let blks = vm.editingTarget.blocks._blocks;
-      let scripts = vm.editingTarget.blocks._scripts;
-      // console.log(blks)
-      // var filtered = Object.fromEntries(Object.entries(blocks).filter(([k,v]) => v>1));
-    }
-
-    // Returns all of the AST paths for a sprite
-    getAllPaths(blocks) {
-
-    }
-
-    // Returns all of the AST paths for a script
-    getScriptPaths(script) {
-
-    }
-
-    // Returns the AST path from this particular block up to parent.
-    getBlockPath(block) {
-
-    }
-
-    // ML Processing functions
-    idx2onehot(idx){
-      // idx2onehot = { i:one_hot_encode(i, len(vocab)) for i in idx2block }
-    }
-
-    reshape() {
-      // xv_reshaped = np.reshape(x_valid, (len(x_valid), input_len, 1))
-      // # normalize
-      // xv_reshaped = xv_reshaped / float(len(vocab))
 
     }
 
@@ -414,6 +390,8 @@ class Blocks extends React.Component {
 
     attachVM () {
         this.workspace.addChangeListener(this.props.vm.blockListener);
+        this.workspace.addChangeListener(this.blockSuggest)
+
         this.flyoutWorkspace = this.workspace
             .getFlyout()
             .getWorkspace();
@@ -421,10 +399,7 @@ class Blocks extends React.Component {
         this.flyoutWorkspace.addChangeListener(this.props.vm.monitorBlockListener);
 
         // Testing new listeners
-        // this.props.vm.addListener('PROJECT_CHANGED', this.projectChanged);
-        this.props.vm.addListener('BLOCK_SUGGEST', this.blockSuggest);
-
-
+        this.props.vm.addListener('PROJECT_LOADED', this.onProjectLoaded);
         this.props.vm.addListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
         this.props.vm.addListener('SCRIPT_GLOW_OFF', this.onScriptGlowOff);
         this.props.vm.addListener('BLOCK_GLOW_ON', this.onBlockGlowOn);
@@ -438,6 +413,7 @@ class Blocks extends React.Component {
         this.props.vm.addListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
     }
     detachVM () {
+        this.props.vm.removeListener('PROJECT_LOADED', this.onProjectLoaded);
         this.props.vm.removeListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
         this.props.vm.removeListener('SCRIPT_GLOW_OFF', this.onScriptGlowOff);
         this.props.vm.removeListener('BLOCK_GLOW_ON', this.onBlockGlowOn);
@@ -452,9 +428,126 @@ class Blocks extends React.Component {
     }
 
     // TEST
-    blockSuggest() {
+    blockSuggest(e) {
       console.log('Suggesting blocks from GUI.')
-      // console.log("project changed listener.")
+      let path;
+      let _next = "-"
+      let _nest = ">"
+
+      // Need to feed in an array of integers into the model.
+      // 1. Calculate the path from the current block up the tree, parent by parent, until parent isn't null.
+      // 1. pad the selected terminal path (prepending)
+      // 2.
+      // // feed currentBlocks to model
+      // // create new blocks
+      // // obtain the vm representation for the new blocks (from model)
+      // newBlocks.forEach(blockRep => this.vm.runtime.getEditingTarget().blocks.createBlock(blockRep));
+      // // this.vm.runtime.getEditngTarget().blocks.toXML();
+      // this.vm.emitWorkspaceUpdate();
+
+      switch (e.type){
+      case 'show_block_context_menu':
+          const allBlocks = this.vm.runtime._editingTarget.blocks._blocks;
+          let currBlock = allBlocks[e.blockId];
+
+          // Add the current block to the path to begin.
+          path = [currBlock.opcode]
+            // keep track of the next parent in the tree
+          let parent;
+
+          // never enters if there's only one block in the sequence
+          while(!currBlock.topLevel) {
+            currBlock = allBlocks[currBlock.parent]
+
+            // FIXME: Doesn't work...
+            // Skip over blocks in the sequence that are not included in the base blocks.
+            if (BLOCK_2_IDX[currBlock.opcode] === undefined) {
+              continue;
+            }
+
+            currBlock.next !== null ? path.unshift(_next) : path.unshift(_nest)
+            path.unshift(currBlock.opcode)
+          }
+
+          let seqLength = this.model.layers[0].batchInputShape[1];
+          let sequence = new Array(seqLength);
+          sequence.fill('');
+
+          if (path.length !== undefined) {
+            let pathLen = path.length;
+            let seqLen = sequence.length;
+            // Fills up the last part of the sequence with the elements of the path.
+            for(let si = seqLen-1, pi = pathLen-1; si > seqLen-1-pathLen; si--, pi--) {
+              sequence[si] = path[pi];
+            }
+          }
+
+          // FIXME: handle edge case when path is longer than the input sequnece for the model.
+          // Now the sequence is ready for encodng into the ML model.
+          console.log(path)
+
+          // Encode it for the model by turning it into a tensor with integer values
+          let encoded = this.encodeSequence(sequence)
+
+          // Normalize by the length of the vocabulary
+          let vocabLength = Object.keys(BLOCK_2_IDX).length
+          encoded = encoded.map( e => e / vocabLength)
+
+          // Is this the correct shape?
+          let shape = [1, seqLength, 1]
+
+          // Create the tensor!
+          let input = tf.tensor(encoded, shape)
+
+          // Feed it into the model!
+          let prediction = this.model.predict(input)
+          let topPredictions = this.topIndices(prediction.squeeze().dataSync(), 5)
+          let topBlocks = topPredictions.map(p=>IDX_2_BLOCK[p])
+
+          console.log("Top output: ")
+          console.log(topBlocks)
+
+          break;
+      case 'block_suggest':
+            // when you click suggest, take those results and plop them!
+            console.log("listeninig?????")
+
+            break;
+      }
+    }
+
+    getPath(start, blocks) {
+      
+    }
+
+    topIndices(list, n) {
+      // Returns the indices of the top n elements in a list.
+      // Create a dictionary based on the indices and values.
+      // sort the list
+      // take the top n values from that list
+      // return an array of the original indices
+      let orignialIndices = {}
+      for(let i = 0; i < list.length; i++) {
+        orignialIndices[list[i]] = i
+      }
+      let sorted = list.sort();
+      let sortedIndices = []
+      for(let s in sorted) {
+        sortedIndices.push(orignialIndices[sorted[s]])
+      }
+      return sortedIndices.slice(sortedIndices.length-n,sortedIndices.length);
+    }
+
+    encodeSequence(seq) {
+      return seq.map(token => BLOCK_2_IDX[token])
+    }
+
+    decodeSequence(seq) {
+      return seq.map(token => IDX_2_BLOCK[token])
+    }
+
+    onProjectLoaded() {
+      console.log('Finsihed loading project.')
     }
 
     updateToolboxBlockValue (id, value) {
