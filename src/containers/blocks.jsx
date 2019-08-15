@@ -430,9 +430,12 @@ class Blocks extends React.Component {
     // TEST
     blockSuggest(e) {
       console.log('Suggesting blocks from GUI.')
+      
       let path;
       let _next = "-"
       let _nest = ">"
+
+      // console.log(e)
 
       // Need to feed in an array of integers into the model.
       // 1. Calculate the path from the current block up the tree, parent by parent, until parent isn't null.
@@ -447,77 +450,74 @@ class Blocks extends React.Component {
 
       switch (e.type){
       case 'show_block_context_menu':
-          const allBlocks = this.vm.runtime._editingTarget.blocks._blocks;
-          let currBlock = allBlocks[e.blockId];
-
-          // Add the current block to the path to begin.
-          path = [currBlock.opcode]
-            // keep track of the next parent in the tree
-          let parent;
-
-          // never enters if there's only one block in the sequence
-          while(!currBlock.topLevel) {
-            currBlock = allBlocks[currBlock.parent]
-
-            // FIXME: Doesn't work...
-            // Skip over blocks in the sequence that are not included in the base blocks.
-            if (BLOCK_2_IDX[currBlock.opcode] === undefined) {
-              continue;
-            }
-
-            currBlock.next !== null ? path.unshift(_next) : path.unshift(_nest)
-            path.unshift(currBlock.opcode)
-          }
-
-          let seqLength = this.model.layers[0].batchInputShape[1];
-          let sequence = new Array(seqLength);
-          sequence.fill('');
-
-          if (path.length !== undefined) {
-            let pathLen = path.length;
-            let seqLen = sequence.length;
-            // Fills up the last part of the sequence with the elements of the path.
-            for(let si = seqLen-1, pi = pathLen-1; si > seqLen-1-pathLen; si--, pi--) {
-              sequence[si] = path[pi];
-            }
-          }
-
-          // FIXME: handle edge case when path is longer than the input sequnece for the model.
-          // Now the sequence is ready for encodng into the ML model.
-          console.log(path)
-
-          // Encode it for the model by turning it into a tensor with integer values
-          let encoded = this.encodeSequence(sequence)
-
-          // Normalize by the length of the vocabulary
-          let vocabLength = Object.keys(BLOCK_2_IDX).length
-          encoded = encoded.map( e => e / vocabLength)
-
-          // Is this the correct shape?
-          let shape = [1, seqLength, 1]
-
-          // Create the tensor!
-          let input = tf.tensor(encoded, shape)
-
-          // Feed it into the model!
-          let prediction = this.model.predict(input)
-          let topPredictions = this.topIndices(prediction.squeeze().dataSync(), 5)
-          let topBlocks = topPredictions.map(p=>IDX_2_BLOCK[p])
-
-          console.log("Top output: ")
-          console.log(topBlocks)
-
-          break;
+            break;
       case 'block_suggest':
-            // when you click suggest, take those results and plop them!
-            console.log("listeninig?????")
+            const allBlocks = this.vm.runtime._editingTarget.blocks._blocks;
+            let currBlock = allBlocks[e.blockId];
 
+            // Add the current block to the path to begin.
+            path = [currBlock.opcode]
+              // keep track of the next parent in the tree
+            let parent;
+
+            // never enters if there's only one block in the sequence
+            while(!currBlock.topLevel) {
+              currBlock = allBlocks[currBlock.parent]
+
+              // FIXME: Doesn't work...
+              // Skip over blocks in the sequence that are not included in the base blocks.
+              if (BLOCK_2_IDX[currBlock.opcode] === undefined) {
+                continue;
+              }
+
+              currBlock.next !== null ? path.unshift(_next) : path.unshift(_nest)
+              path.unshift(currBlock.opcode)
+            }
+
+            let seqLength = this.model.layers[0].batchInputShape[1];
+            let sequence = new Array(seqLength);
+            sequence.fill('');
+
+            if (path.length !== undefined) {
+              let pathLen = path.length;
+              let seqLen = sequence.length;
+              // Fills up the last part of the sequence with the elements of the path.
+              for(let si = seqLen-1, pi = pathLen-1; si > seqLen-1-pathLen; si--, pi--) {
+                sequence[si] = path[pi];
+              }
+            }
+
+            // FIXME: handle edge case when path is longer than the input sequnece for the model.
+            // Now the sequence is ready for encodng into the ML model.
+            console.log(path)
+
+            // Encode it for the model by turning it into a tensor with integer values
+            let encoded = this.encodeSequence(sequence)
+
+            // Normalize by the length of the vocabulary
+            let vocabLength = Object.keys(BLOCK_2_IDX).length
+            encoded = encoded.map( e => e / vocabLength)
+
+            // Is this the correct shape?
+            let shape = [1, seqLength, 1]
+
+            // Create the tensor!
+            let input = tf.tensor(encoded, shape)
+
+            // Feed it into the model!
+            let prediction = this.model.predict(input)
+            let predictionAmount = 5
+            let topPredictions = this.topIndices(prediction.squeeze().dataSync(), predictionAmount)
+            let topBlocks = topPredictions.map(p=>IDX_2_BLOCK[p])
+
+            console.log("Top output:")
+            console.log(topBlocks)
             break;
       }
     }
 
     getPath(start, blocks) {
-      
+
     }
 
     topIndices(list, n) {
