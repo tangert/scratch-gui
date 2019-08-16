@@ -430,7 +430,7 @@ class Blocks extends React.Component {
     // TEST
     blockSuggest(e) {
       console.log('Suggesting blocks from GUI.')
-      
+
       let path;
       let _next = "-"
       let _nest = ">"
@@ -510,8 +510,20 @@ class Blocks extends React.Component {
             let topPredictions = this.topIndices(prediction.squeeze().dataSync(), predictionAmount)
             let topBlocks = topPredictions.map(p=>IDX_2_BLOCK[p])
 
-            console.log("Top output:")
-            console.log(topBlocks)
+            console.log("Top output:");
+            console.log(topBlocks);
+
+            // Take the predictions and create the actual blocks out of them
+            let blocks = Array.from(Blockly.Xml.textToDom(this.getToolboxXML()).getElementsByTagName('block'));
+            let predictedBlocksXml = blocks.filter(b=>topBlocks.includes(b.attributes[0].value));
+            predictedBlocksXml.forEach( x => {
+              let b = this.ScratchBlocks.Xml.domToBlock(x, this.workspace);
+              b.initSvg();
+              b.moveBy(
+                this.workspace.mouseX + Math.random() * this.ScratchBlocks.SNAP_RADIUS*5,
+                this.workspace.mouseY + Math.random() * this.ScratchBlocks.SNAP_RADIUS*5
+              );
+            });
             break;
       }
     }
