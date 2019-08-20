@@ -492,22 +492,14 @@ class Blocks extends React.Component {
             console.log(path)
 
             // Encode it for the model by turning it into a tensor with integer values
-            let encoded = this.encodeSequence(sequence)
-
-            // Normalize by the length of the vocabulary
+            // Normalize it by dividing by the vocab length
             let vocabLength = Object.keys(BLOCK_2_IDX).length
-            encoded = encoded.map( e => e / vocabLength)
-
-            // Is this the correct shape?
-            let shape = [1, seqLength, 1]
-
-            // Create the tensor!
-            let input = tf.tensor(encoded, shape)
+            let encoded = this.encodeSequence(sequence).map( e => e / vocabLength)
+            let input = tf.tensor(encoded, [1, seqLength, 1])
 
             // Feed it into the model!
             let prediction = this.model.predict(input)
-            let predictionAmount = 5
-            let topPredictions = this.topIndices(prediction.squeeze().dataSync(), predictionAmount)
+            let topPredictions = this.topIndices(prediction.squeeze().dataSync(), 5)
             let topBlocks = topPredictions.map(p=>IDX_2_BLOCK[p])
 
             console.log("Top output:");
@@ -524,12 +516,11 @@ class Blocks extends React.Component {
                 this.workspace.mouseY + Math.random() * this.ScratchBlocks.SNAP_RADIUS*5
               );
             });
+
+            // Maybe make it so that it just takes the top prediction and connects that block to the one that was just clicked to?
+
             break;
       }
-    }
-
-    getPath(start, blocks) {
-
     }
 
     topIndices(list, n) {
