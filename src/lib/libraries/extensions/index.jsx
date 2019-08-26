@@ -47,6 +47,27 @@ import gdxforConnectionIconURL from './gdxfor/gdxfor-illustration.svg';
 import gdxforConnectionSmallIconURL from './gdxfor/gdxfor-small.svg';
 
 export default [
+    /// MARK: TYLER'S EXTENSIONS
+    {
+        name: (
+            <FormattedMessage
+                defaultMessage="Debugging"
+                description="Name for the 'Debugging' extension"
+                id="gui.extension.debug.name"
+            />
+        ),
+        extensionId: 'debug',
+        iconURL: null,
+        insetIconURL: null,
+        description: (
+            <FormattedMessage
+                defaultMessage="Debug your code and label things!"
+                description="Description for the 'Debugging' extension"
+                id="gui.extension.debug.description"
+            />
+        ),
+        featured: true
+    },
     {
         name: (
             <FormattedMessage

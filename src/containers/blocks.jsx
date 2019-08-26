@@ -186,7 +186,7 @@ class Blocks extends React.Component {
             'onWorkspaceMetricsChange',
             'setBlocks',
             'setLocale',
-            'blockSuggest',
+            'workspaceChanged',
             'onProjectLoaded',
             'encodeSequence',
             'decodeSequence',
@@ -390,7 +390,7 @@ class Blocks extends React.Component {
 
     attachVM () {
         this.workspace.addChangeListener(this.props.vm.blockListener);
-        this.workspace.addChangeListener(this.blockSuggest)
+        this.workspace.addChangeListener(this.workspaceChanged)
 
         this.flyoutWorkspace = this.workspace
             .getFlyout()
@@ -428,8 +428,7 @@ class Blocks extends React.Component {
     }
 
     // TEST
-    blockSuggest(e) {
-      console.log('Suggesting blocks from GUI.')
+    workspaceChanged(e) {
 
       let path;
       let _next = "-"
@@ -447,14 +446,56 @@ class Blocks extends React.Component {
       // newBlocks.forEach(blockRep => this.vm.runtime.getEditingTarget().blocks.createBlock(blockRep));
       // // this.vm.runtime.getEditngTarget().blocks.toXML();
       // this.vm.emitWorkspaceUpdate();
+      const allBlocks = this.vm.runtime._editingTarget.blocks._blocks;
+      let currBlock = allBlocks[e.blockId];
 
       switch (e.type){
+      case 'endDrag':
+            if(currBlock['opcode'] === 'debugging_surprise') {
+
+              let currBlockData = this.workspace.blockDB_[e.blockId];
+              let oldPos = currBlockData.getRelativeToSurfaceXY();
+
+              var availableCategories = ['motion', 'looks', 'sound', 'event', 'control']
+              var domBlocks = this.ScratchBlocks.Xml.textToDom(this.getToolboxXML()).getElementsByTagName('block');
+              var toolboxBlocks = Array.from(domBlocks).filter(b=>availableCategories.includes(b.getAttribute('type').split('_')[0]));
+
+              // Specially excluded blocks from the chosen categories
+              var excludedBlocks = ['motion_ifonedgebounce', 'motion_setrotationstyle', 'motion_xposition',  'motion_yposition',  'motion_direction',
+                                    'looks_show', 'looks_hide', 'looks_cleargraphiceffects', 'looks_gotofrontback', 'looks_goforwardbackwardlayers', 'looks_costumenumbername', 'looks_backdropnumbername', 'looks_size',
+                                    'sound_stopallsounds', 'sound_cleareffects', 'sound_volume',
+                                    'event_whenbackdropswitchesto', 'event_whengreaterthan', 'event_whenbroadcastreceived', 'event_broadcast', 'event_broadcastandwait',
+                                    'control_if', 'control_if_else', 'control_wait_until', 'control_repeat_until', 'control_stop', 'control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone']
+
+
+
+              // Perhaps choose from relevant subsets
+              // If the block is on top, choose random from events
+              // Otherwise excluse hats
+              // blocks = blocks.filter(b=>!excludedBlocks.includes(b.id))
+              toolboxBlocks = toolboxBlocks.filter(b=>!excludedBlocks.includes(b.getAttribute('type')))
+              var blockXML = toolboxBlocks[Math.floor(Math.random() * toolboxBlocks.length)];
+              var block = this.ScratchBlocks.Xml.domToBlock(blockXML, this.workspace);
+
+              // you want to init the svg, move it, and connect it to the current blocks connections
+              block.initSvg();
+              block.moveBy(oldPos.x, oldPos.y);
+              // block.previousConnection = currBlock.previousConnection
+              // block.nextConnection = currBlock.nextConnection
+
+              // block.previousConnection.connect(currBlockData.nextConnection);
+              // block.outputConnection.connect(currBlockData.outputConnection)
+              block.previousConnection.connect(currBlockData.previousConnection.targetConnection);
+              block.nextConnection.connect(currBlockData.previousConnection);
+              block.snapToGrid();
+
+              // passing in true "heals" the stack
+              currBlockData.dispose(true);
+            }
+            break;
       case 'show_block_context_menu':
             break;
       case 'block_suggest':
-            const allBlocks = this.vm.runtime._editingTarget.blocks._blocks;
-            let currBlock = allBlocks[e.blockId];
-
             // Add the current block to the path to begin.
             path = [currBlock.opcode]
               // keep track of the next parent in the tree
