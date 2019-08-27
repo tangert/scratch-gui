@@ -451,6 +451,7 @@ class Blocks extends React.Component {
 
       switch (e.type){
       case 'endDrag':
+
             if(currBlock['opcode'] === 'debugging_surprise') {
 
               let currBlockData = this.workspace.blockDB_[e.blockId];
@@ -467,30 +468,91 @@ class Blocks extends React.Component {
                                     'event_whenbackdropswitchesto', 'event_whengreaterthan', 'event_whenbroadcastreceived', 'event_broadcast', 'event_broadcastandwait',
                                     'control_if', 'control_if_else', 'control_wait_until', 'control_repeat_until', 'control_stop', 'control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone']
 
-
+              var hats = ['event_whenflagclicked', 'event_whenkeypressed', 'event_whenthisspriteclicked']
 
               // Perhaps choose from relevant subsets
               // If the block is on top, choose random from events
               // Otherwise excluse hats
               // blocks = blocks.filter(b=>!excludedBlocks.includes(b.id))
               toolboxBlocks = toolboxBlocks.filter(b=>!excludedBlocks.includes(b.getAttribute('type')))
+
+              // Array.from(toolboxBlocks).forEach(b=>console.log(b.getAttribute('type')))
+              // toolboxBlocks = toolboxBlocks.filter(b=>b.getAttribute('type') === 'control_forever')
+
               var blockXML = toolboxBlocks[Math.floor(Math.random() * toolboxBlocks.length)];
-              var block = this.ScratchBlocks.Xml.domToBlock(blockXML, this.workspace);
+              var newBlock = this.ScratchBlocks.Xml.domToBlock(blockXML, this.workspace);
 
               // you want to init the svg, move it, and connect it to the current blocks connections
-              block.initSvg();
-              block.moveBy(oldPos.x, oldPos.y);
-              // block.previousConnection = currBlock.previousConnection
-              // block.nextConnection = currBlock.nextConnection
+              // debugger;
+              newBlock.initSvg();
+              newBlock.moveBy(oldPos.x, oldPos.y);
 
-              // block.previousConnection.connect(currBlockData.nextConnection);
-              // block.outputConnection.connect(currBlockData.outputConnection)
-              block.previousConnection.connect(currBlockData.previousConnection.targetConnection);
-              block.nextConnection.connect(currBlockData.previousConnection);
-              block.snapToGrid();
+              // console.log(block.previousConnection)
+              // console.log(block.nextConnection)
+              // console.log(block)
+              // console.log(currBlockData)
+
+              // add to the excluded blocks based on the position you dropped into?
+              // used to handle hat blocks and stuff
+
+              // Hat blocks will be null here
+              let oldConn = currBlockData.previousConnection.targetConnection
+              if(newBlock.previousConnection !== null) {
+                newBlock.previousConnection.connect(oldConn);
+              }
+
+              // // Forever / stop blocks will be null here.
+
+              // Maybe while it's dragging, you can change the color of it?
+
+              if(newBlock.nextConnection !== null) {
+                newBlock.nextConnection.connect(currBlockData.previousConnection);
+              } else {
+                console.log("No next")
+                newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
+              }
+
+              //   let childToWrap = currBlockData.nextConnection.targetBlock()
+              //   newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
+              //   newBlock.previousConnection.connect(currBlockData.previousConnection.targetConnection)
+              //
+              //   // If you get no next block, then you have to take the current next block and add  it as a child (wrap it)
+              //   // if(currBlockData.nextConnection.targetBlock()) {
+              //   //   // want to take the currnet next and add it as a child to the new block
+              //   //   if(newBlock.childBlocks_) {
+              //   //
+              //   //     // First you add the target block as a child
+              //   //     // newBlock.childBlocks_.push(childToWrap)
+              //   //     let childToWrap = currBlockData.nextConnection.targetBlock()
+              //   //     newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
+              //   //     newBlock.previousConnection.connect(currBlockData.previousConnection.targetConnection)
+              //   //     // Make a previous connection
+              //   //     // childToWrap.parentBlock_ = block
+              //   //     // childToWrap.makeConnection_(this.ScratchBlocks.PREVIOUS_STATEMENT)
+              //   //     // childToWrap.previousConnection.targetConnection =
+              //   //     // targets previousConnection.targetConnection.sourceblock
+              //   //     // currBlockData.nextConnection.targetBlock().parentBlock_ = block
+              //   //     // block.previousConnection.targetConnection.connect(block.parentBlock_.previousConnection.targetConnection)
+              //   //
+              //   //   } else {
+              //   //     // block.childBlocks_ = [currBlockData.nextConnection.targetBlock()]
+              //   //   }
+              //   //   // currBlockData.previousConnection.connect()
+              //   // }
+              //   // console.log(newBlock)
+              //
+              //   // No next connection. Have to wrap.
+              //   // block.childBlocks.push(currBlockData.nextConnection.sourceBlock)
+              //   // currBlockData.nextConnection.sourceBlock.parentBlock = block
+              //   // currBlockData
+              //   // block.childBlocks.push(currBlockData.getDescendants(true))
+              //   // block.setNextStatement(true)
+              // }
+
+              // newBlock.snapToGrid();
+              currBlockData.dispose(true);
 
               // passing in true "heals" the stack
-              currBlockData.dispose(true);
             }
             break;
       case 'show_block_context_menu':
