@@ -446,15 +446,85 @@ class Blocks extends React.Component {
       // newBlocks.forEach(blockRep => this.vm.runtime.getEditingTarget().blocks.createBlock(blockRep));
       // // this.vm.runtime.getEditngTarget().blocks.toXML();
       // this.vm.emitWorkspaceUpdate();
-      const allBlocks = this.vm.runtime._editingTarget.blocks._blocks;
-      let currBlock = allBlocks[e.blockId];
-
+      const allBlocks = this.props.vm.runtime._editingTarget.blocks._blocks;
+      var currBlock = allBlocks[e.blockId];
       switch (e.type){
+      case 'create':
+            if(this.workspace.blockDB_[e.blockId].type === 'surprise_surprisenow') {
+
+                let currBlockData = this.workspace.blockDB_[e.blockId];
+                currBlockData.dispose()
+
+                var availableCategories = ['motion', 'looks', 'sound', 'event', 'control']
+                var domBlocks = this.ScratchBlocks.Xml.textToDom(this.getToolboxXML()).getElementsByTagName('block');
+                var toolboxBlocks = Array.from(domBlocks).filter(b=>availableCategories.includes(b.getAttribute('type').split('_')[0]));
+                // Specially excluded blocks from the chosen categories
+                var excludedBlocks = ['motion_ifonedgebounce', 'motion_setrotationstyle', 'motion_xposition',  'motion_yposition',  'motion_direction',
+                                      'looks_show', 'looks_hide', 'looks_cleargraphiceffects', 'looks_gotofrontback', 'looks_goforwardbackwardlayers', 'looks_costumenumbername', 'looks_backdropnumbername', 'looks_size',
+                                      'sound_stopallsounds', 'sound_cleareffects', 'sound_volume',
+                                      'event_whenbackdropswitchesto', 'event_whengreaterthan', 'event_whenbroadcastreceived', 'event_broadcast', 'event_broadcastandwait',
+                                      'control_if', 'control_if_else', 'control_wait_until', 'control_repeat_until', 'control_stop', 'control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone']
+                toolboxBlocks = toolboxBlocks.filter(b=>!excludedBlocks.includes(b.getAttribute('type')))
+                var blockXML = toolboxBlocks[Math.floor(Math.random() * toolboxBlocks.length)];
+                var newBlock = this.ScratchBlocks.Xml.domToBlock(blockXML, this.workspace);
+
+                console.log(newBlock)
+
+                this.ScratchBlocks.Events.disable();
+                try {
+                  // Scratch-specific: Give shadow dom new IDs to prevent duplicating on paste
+                  this.ScratchBlocks.scratchBlocksUtils.changeObscuredShadowIds(newBlock);
+
+                  var svgRootNew = newBlock.getSvgRoot();
+                  if (!svgRootNew) {
+                    throw new Error('newBlock is not rendered.');
+                  }
+                  // Place the new block as the same position as the old block.
+                  // TODO: Offset by the difference between the mouse position and the upper
+                  // left corner of the block.
+                  // var point = Blockly.utils.mouseToSvg(this.lastEvent_, this.workspace_.getParentSvg(),  this.workspace_.getInverseScreenCTM());
+                  var rel = this.workspace.getOriginOffsetInPixels();
+                  let newX = (this.workspace.mouseX-rel.x) / this.workspace.scale;
+                  let newY = (this.workspace.mouseY-rel.y) / this.workspace.scale;
+                  // newBlock.moveBy(newX, newY - newBlock.height * 2);
+                  newBlock.moveBy(0, this.workspace.lastEvent.clientY);
+                  // Perhaps suggest related blocks that are linked to others
+
+                } finally {
+                  this.ScratchBlocks.Events.enable();
+                }
+                if (this.ScratchBlocks.Events.isEnabled()) {
+                  this.ScratchBlocks.Events.fire(new this.ScratchBlocks.Events.BlockCreate(newBlock));
+                }
+                console.log(this.workspace.mouseX, this.workspace.mouseY)
+                var fakeEvent = {
+                  clientX: rel.x,
+                  clientY: this.workspace.lastEvent.clientY + newBlock.height,
+                  type: 'mousedown',
+                  preventDefault: function() {
+                    this.workspace.lastEvent.preventDefault();
+                  },
+                  stopPropagation: function() {
+                    this.workspace.lastEvent.stopPropagation();
+                  },
+                  target: this.workspace.lastEvent.target
+                };
+                this.workspace.startDragWithFakeEvent(fakeEvent, newBlock);
+              }
+          /*
+          create a fake drag event?
+          copy the block to the
+          the moment you drag it out, you want to dispose then create a new block with a fake drag event at the mouse position
+          */
+          break;
       case 'endDrag':
 
-            if(currBlock['opcode'] === 'debugging_surprise') {
-
+            if(currBlock['opcode'] === 'surprise_surprise') {
               let currBlockData = this.workspace.blockDB_[e.blockId];
+              if(currBlockData === undefined) {
+                break;
+              }
+
               let oldPos = currBlockData.getRelativeToSurfaceXY();
 
               var availableCategories = ['motion', 'looks', 'sound', 'event', 'control']
@@ -468,15 +538,22 @@ class Blocks extends React.Component {
                                     'event_whenbackdropswitchesto', 'event_whengreaterthan', 'event_whenbroadcastreceived', 'event_broadcast', 'event_broadcastandwait',
                                     'control_if', 'control_if_else', 'control_wait_until', 'control_repeat_until', 'control_stop', 'control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone']
 
+
               var hats = ['event_whenflagclicked', 'event_whenkeypressed', 'event_whenthisspriteclicked']
+
+              // at the top
+              if(currBlockData.parentBlock_ !== null) {
+                excludedBlocks = excludedBlocks.concat(hats)
+                console.log("not top level.")
+              }
 
               // Perhaps choose from relevant subsets
               // If the block is on top, choose random from events
               // Otherwise excluse hats
               // blocks = blocks.filter(b=>!excludedBlocks.includes(b.id))
               toolboxBlocks = toolboxBlocks.filter(b=>!excludedBlocks.includes(b.getAttribute('type')))
+              console.log(Array.from(toolboxBlocks).map(b=>b.getAttribute('type')))
 
-              // Array.from(toolboxBlocks).forEach(b=>console.log(b.getAttribute('type')))
               // toolboxBlocks = toolboxBlocks.filter(b=>b.getAttribute('type') === 'control_forever')
 
               var blockXML = toolboxBlocks[Math.floor(Math.random() * toolboxBlocks.length)];
@@ -487,24 +564,158 @@ class Blocks extends React.Component {
               newBlock.initSvg();
               newBlock.moveBy(oldPos.x, oldPos.y);
 
-              // console.log(block.previousConnection)
-              // console.log(block.nextConnection)
-              // console.log(block)
-              // console.log(currBlockData)
-
+              //
               // add to the excluded blocks based on the position you dropped into?
               // used to handle hat blocks and stuff
 
               // Hat blocks will be null here
-              let oldConn = currBlockData.previousConnection.targetConnection
               if(newBlock.previousConnection !== null) {
-                newBlock.previousConnection.connect(oldConn);
+                newBlock.previousConnection.connect(currBlockData.previousConnection.targetConnection);
               }
 
               // // Forever / stop blocks will be null here.
-
               // Maybe while it's dragging, you can change the color of it?
+              if(newBlock.nextConnection !== null) {
+                newBlock.nextConnection.connect(currBlockData.previousConnection);
+              } else {
+                console.log("No next")
+                newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
+              }
+              //
+              // if(newBlock.getAttribute('type').includes('event')) {
+              //   newBlock.moveBy()
+              // }
+              newBlock.fromSurprise = true
+              newBlock.snapToGrid();
+              // passing in true "heals" the stack
+              currBlockData.dispose(true);
+            }
 
+            else if (currBlock['opcode'] === 'surprise_suggestion') {
+              path = [currBlock.opcode]
+                // keep track of the next parent in the tree
+              let parent;
+
+              // never enters if there's only one block in the sequence
+              while(!currBlock.topLevel) {
+                currBlock = allBlocks[currBlock.parent]
+
+                // FIXME: Doesn't work...
+                // Skip over blocks in the sequence that are not included in the base blocks.
+                if (BLOCK_2_IDX[currBlock.opcode] === undefined) {
+                  continue;
+                }
+
+                currBlock.next !== null ? path.unshift(_next) : path.unshift(_nest)
+                path.unshift(currBlock.opcode)
+              }
+
+              let seqLength = this.model.layers[0].batchInputShape[1];
+              let sequence = new Array(seqLength);
+              sequence.fill('');
+
+              if (path.length !== undefined) {
+                let pathLen = path.length;
+                let seqLen = sequence.length;
+                // Fills up the last part of the sequence with the elements of the path.
+                for(let si = seqLen-1, pi = pathLen-1; si > seqLen-1-pathLen; si--, pi--) {
+                  sequence[si] = path[pi];
+                }
+              }
+
+              // FIXME: handle edge case when path is longer than the input sequnece for the model.
+              // Now the sequence is ready for encodng into the ML model.
+              console.log(path)
+
+              // Encode it for the model by turning it into a tensor with integer values
+              // Normalize it by dividing by the vocab length
+              let vocabLength = Object.keys(BLOCK_2_IDX).length
+              let encoded = this.encodeSequence(sequence).map( e => e / vocabLength)
+              let input = tf.tensor(encoded, [1, seqLength, 1])
+
+              // Feed it into the model!
+              let prediction = this.model.predict(input)
+              // console.log(prediction.argMax())
+              // let topBlock = IDX_2_BLOCK[prediction.argMax().squeeze().dataSync()]
+
+              let topPredictions = this.topIndices(prediction.squeeze().dataSync(), 1)
+              let topBlock = IDX_2_BLOCK[prediction.argMax().squeeze().dataSync()]
+              console.log(topBlock)
+            }
+
+            else if (currBlock['opcode'] === 'surprise_surprisecategory') {
+              console.log("Surprising from cateogry")
+              let chosenCategory = currBlock.fields.category.value
+              var availableCategories = ['motion', 'looks', 'sound', 'event', 'control']
+              switch(chosenCategory){
+                case 'all categories':
+                break;
+                case 'motion': availableCategories = ['motion']
+                break;
+                case 'looks': availableCategories = ['looks']
+                break;
+                case 'sounds': availableCategories = ['sound']
+                break;
+                case 'events': availableCategories = ['event']
+                break;
+                case 'control': availableCategories = ['control']
+                break;
+              }
+
+              let currBlockData = this.workspace.blockDB_[e.blockId];
+              if(currBlockData === undefined) {
+                break;
+              }
+
+              let oldPos = currBlockData.getRelativeToSurfaceXY();
+
+              var domBlocks = this.ScratchBlocks.Xml.textToDom(this.getToolboxXML()).getElementsByTagName('block');
+              var toolboxBlocks = Array.from(domBlocks).filter(b=>availableCategories.includes(b.getAttribute('type').split('_')[0]));
+
+              // Specially excluded blocks from the chosen categories
+              var excludedBlocks = ['motion_ifonedgebounce', 'motion_setrotationstyle', 'motion_xposition',  'motion_yposition',  'motion_direction',
+                                    'looks_show', 'looks_hide', 'looks_cleargraphiceffects', 'looks_gotofrontback', 'looks_goforwardbackwardlayers', 'looks_costumenumbername', 'looks_backdropnumbername', 'looks_size',
+                                    'sound_stopallsounds', 'sound_cleareffects', 'sound_volume',
+                                    'event_whenbackdropswitchesto', 'event_whengreaterthan', 'event_whenbroadcastreceived', 'event_broadcast', 'event_broadcastandwait',
+                                    'control_if', 'control_if_else', 'control_wait_until', 'control_repeat_until', 'control_stop', 'control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone']
+
+
+              var hats = ['event_whenflagclicked', 'event_whenkeypressed', 'event_whenthisspriteclicked']
+
+              // at the top
+              // if(currBlockData.parentBlock_ !== null) {
+              //   excludedBlocks = excludedBlocks.concat(hats)
+              //   console.log("not top level.")
+              // }
+
+              // Perhaps choose from relevant subsets
+              // If the block is on top, choose random from events
+              // Otherwise excluse hats
+              // blocks = blocks.filter(b=>!excludedBlocks.includes(b.id))
+              toolboxBlocks = toolboxBlocks.filter(b=>!excludedBlocks.includes(b.getAttribute('type')))
+              console.log(Array.from(toolboxBlocks).map(b=>b.getAttribute('type')))
+
+              // toolboxBlocks = toolboxBlocks.filter(b=>b.getAttribute('type') === 'control_forever')
+
+              var blockXML = toolboxBlocks[Math.floor(Math.random() * toolboxBlocks.length)];
+              var newBlock = this.ScratchBlocks.Xml.domToBlock(blockXML, this.workspace);
+
+              // you want to init the svg, move it, and connect it to the current blocks connections
+              // debugger;
+              newBlock.initSvg();
+              newBlock.moveBy(oldPos.x, oldPos.y);
+
+              //
+              // add to the excluded blocks based on the position you dropped into?
+              // used to handle hat blocks and stuff
+
+              // Hat blocks will be null here
+              if(newBlock.previousConnection !== null) {
+                newBlock.previousConnection.connect(currBlockData.previousConnection.targetConnection);
+              }
+
+              // // Forever / stop blocks will be null here.
+              // Maybe while it's dragging, you can change the color of it?
               if(newBlock.nextConnection !== null) {
                 newBlock.nextConnection.connect(currBlockData.previousConnection);
               } else {
@@ -512,48 +723,17 @@ class Blocks extends React.Component {
                 newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
               }
 
-              //   let childToWrap = currBlockData.nextConnection.targetBlock()
-              //   newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
-              //   newBlock.previousConnection.connect(currBlockData.previousConnection.targetConnection)
+              newBlock.fromSurprise = true
               //
-              //   // If you get no next block, then you have to take the current next block and add  it as a child (wrap it)
-              //   // if(currBlockData.nextConnection.targetBlock()) {
-              //   //   // want to take the currnet next and add it as a child to the new block
-              //   //   if(newBlock.childBlocks_) {
-              //   //
-              //   //     // First you add the target block as a child
-              //   //     // newBlock.childBlocks_.push(childToWrap)
-              //   //     let childToWrap = currBlockData.nextConnection.targetBlock()
-              //   //     newBlock.getFirstStatementConnection().connect(currBlockData.nextConnection.targetConnection)
-              //   //     newBlock.previousConnection.connect(currBlockData.previousConnection.targetConnection)
-              //   //     // Make a previous connection
-              //   //     // childToWrap.parentBlock_ = block
-              //   //     // childToWrap.makeConnection_(this.ScratchBlocks.PREVIOUS_STATEMENT)
-              //   //     // childToWrap.previousConnection.targetConnection =
-              //   //     // targets previousConnection.targetConnection.sourceblock
-              //   //     // currBlockData.nextConnection.targetBlock().parentBlock_ = block
-              //   //     // block.previousConnection.targetConnection.connect(block.parentBlock_.previousConnection.targetConnection)
-              //   //
-              //   //   } else {
-              //   //     // block.childBlocks_ = [currBlockData.nextConnection.targetBlock()]
-              //   //   }
-              //   //   // currBlockData.previousConnection.connect()
-              //   // }
-              //   // console.log(newBlock)
-              //
-              //   // No next connection. Have to wrap.
-              //   // block.childBlocks.push(currBlockData.nextConnection.sourceBlock)
-              //   // currBlockData.nextConnection.sourceBlock.parentBlock = block
-              //   // currBlockData
-              //   // block.childBlocks.push(currBlockData.getDescendants(true))
-              //   // block.setNextStatement(true)
+              // if(newBlock.getAttribute('type').includes('event')) {
+              //   newBlock.moveBy()
               // }
 
-              // newBlock.snapToGrid();
-              currBlockData.dispose(true);
-
+              newBlock.snapToGrid();
               // passing in true "heals" the stack
+              currBlockData.dispose(true);
             }
+
             break;
       case 'show_block_context_menu':
             break;
@@ -603,6 +783,7 @@ class Blocks extends React.Component {
             // Feed it into the model!
             let prediction = this.model.predict(input)
             let topPredictions = this.topIndices(prediction.squeeze().dataSync(), 5)
+            let topBlock = IDX_2_BLOCK[prediction.argMax().squeeze().dataSync()]
             let topBlocks = topPredictions.map(p=>IDX_2_BLOCK[p])
 
             console.log("Top output:");
@@ -610,7 +791,7 @@ class Blocks extends React.Component {
 
             // Take the predictions and create the actual blocks out of them
             let blocks = Array.from(Blockly.Xml.textToDom(this.getToolboxXML()).getElementsByTagName('block'));
-            let predictedBlocksXml = blocks.filter(b=>topBlocks.includes(b.attributes[0].value));
+            let predictedBlocksXml = blocks.filter(b=>topBlocks.includes(b.getAttribute('type')));
             predictedBlocksXml.forEach( x => {
               let b = this.ScratchBlocks.Xml.domToBlock(x, this.workspace);
               b.initSvg();

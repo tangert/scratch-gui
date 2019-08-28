@@ -51,8 +51,29 @@ export default [
     {
         name: (
             <FormattedMessage
-                defaultMessage="Debugging"
-                description="Name for the 'Debugging' extension"
+                defaultMessage="Surprise"
+                description="Surprise extension"
+                id="gui.extension.surprise.name"
+            />
+        ),
+        extensionId: 'surprise',
+        iconURL: null,
+        insetIconURL: null,
+        description: (
+            <FormattedMessage
+                defaultMessage="Surprise suuuuurprise!"
+                description="Surprise extension"
+                id="gui.extension.surprise.description"
+            />
+        ),
+        featured: true
+    },
+
+    {
+        name: (
+            <FormattedMessage
+                defaultMessage="Debug"
+                description="Debug extension"
                 id="gui.extension.debug.name"
             />
         ),
@@ -61,7 +82,7 @@ export default [
         insetIconURL: null,
         description: (
             <FormattedMessage
-                defaultMessage="Debug your code and label things!"
+                defaultMessage="Add organization and comments to your code"
                 description="Description for the 'Debugging' extension"
                 id="gui.extension.debug.description"
             />
